@@ -12,6 +12,8 @@ public class User {
     private String fullName;
     private LocalTime timeOfBirth;
     private String phone;
+    private String profileImage;
+
 
     // Getters and setters
     public int getUserId() { return userId; }
@@ -30,4 +32,6 @@ public class User {
     public void setTimeOfBirth(LocalTime timeOfBirth) { this.timeOfBirth = timeOfBirth; }
     public String getPhone() { return phone; }
     public void setPhone(String phone) { this.phone = phone; }
+    public String getProfileImage() { return profileImage; }
+    public void setProfileImage(String profileImage) { this.profileImage = profileImage; }
 }

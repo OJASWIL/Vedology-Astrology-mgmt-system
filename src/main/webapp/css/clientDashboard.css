@@ -1,236 +1,429 @@
+/* ============================================================
+   Vedology Dashboard – Shared Styles (Admin & Client)
+   ============================================================ */
+
+*, *::before, *::after { box-sizing: border-box; }
+
 body {
-    font-family: Arial, sans-serif;
+    font-family: 'Segoe UI', Arial, sans-serif;
     margin: 0;
     padding: 0;
-    background-color: #f4f4f4;
+    background-color: #f0f2f5;
+    color: #333;
 }
 
+/* ── Header ── */
 header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background-color: #2c3e50;
+    background: linear-gradient(135deg, #2c3e50 0%, #3d5166 100%);
     color: white;
-    padding: 10px 20px;
+    padding: 0 24px;
+    height: 60px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    position: sticky;
+    top: 0;
+    z-index: 100;
 }
 
 .logo {
-    font-size: 24px;
-    font-weight: bold;
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
 }
 
-.top-nav span, .top-nav a {
+.top-nav {
+    display: flex;
+    align-items: center;
+}
+
+.top-nav span,
+.top-nav a {
     margin-left: 20px;
     cursor: pointer;
-    color: white;
+    color: rgba(255,255,255,0.9);
     text-decoration: none;
+    font-size: 14px;
+    transition: color 0.2s;
 }
 
-.top-nav span:hover, .top-nav a:hover {
-    color: #ecf0f1;
+.top-nav span:hover,
+.top-nav a:hover { color: #fff; }
+
+/* ── Header Avatar – fixed 36px, never bigger ── */
+.header-avatar,
+.top-nav > img {
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+    min-height: 36px !important;
+    max-width: 36px !important;
+    max-height: 36px !important;
+    border-radius: 50% !important;
+    object-fit: cover !important;
+    vertical-align: middle;
+    margin-left: 20px;
+    margin-right: 8px;
+    border: 2px solid rgba(255,255,255,0.55);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+    flex-shrink: 0;
+    display: inline-block;
+    overflow: hidden;
 }
 
+/* ── Layout ── */
 .dashboard {
     display: flex;
-    height: calc(100vh - 60px);
+    min-height: calc(100vh - 60px);
 }
 
+/* ── Sidebar ── */
 .sidebar {
-    width: 250px;
-    background-color: #34495e;
+    width: 230px;
+    background: #2c3e50;
     color: white;
-    padding: 20px 0;
+    padding: 16px 0;
+    flex-shrink: 0;
+    box-shadow: 2px 0 6px rgba(0,0,0,0.1);
 }
 
 .sidebar nav ul {
     list-style: none;
     padding: 0;
+    margin: 0;
 }
 
-.sidebar nav ul li, .sidebar nav ul li a {
-    padding: 15px 20px;
-    cursor: pointer;
+.sidebar nav ul li { padding: 0; }
+
+.sidebar nav ul li a {
     display: block;
-    color: white;
+    padding: 13px 22px;
+    color: rgba(255,255,255,0.82);
     text-decoration: none;
+    font-size: 14px;
+    transition: background 0.18s, color 0.18s, border-left-color 0.18s;
+    border-left: 3px solid transparent;
 }
 
-.sidebar nav ul li:hover, .sidebar nav ul li.active {
-    background-color: #465c71;
+.sidebar nav ul li a:hover,
+.sidebar nav ul li.active a {
+    background: #3d5166;
+    color: #fff;
+    border-left-color: #3498db;
 }
 
+/* ── Main Content ── */
 .content {
     flex-grow: 1;
-    padding: 20px;
+    padding: 24px;
+    overflow-y: auto;
 }
 
+/* ── Dashboard Container Card ── */
 .dashboard-container {
-    background-color: white;
-    padding: 20px;
-    border-radius: 5px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    background: #fff;
+    padding: 28px;
+    border-radius: 10px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    margin-bottom: 24px;
+}
+
+/* ── Page header row (title + action button) ── */
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     margin-bottom: 20px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid #eef0f3;
 }
 
-h2, h3, h4 {
-    color: #2c3e50;
-    margin-top: 0;
+.page-header h3 { margin: 0; font-size: 18px; color: #2c3e50; }
+
+/* ── Headings ── */
+h2, h3, h4 { color: #2c3e50; margin-top: 0; }
+h2 { font-size: 22px; margin-bottom: 16px; }
+h3 { font-size: 18px; margin-bottom: 14px; }
+h4 { font-size: 15px; margin-bottom: 10px; }
+
+/* ── Profile Card (Dashboard tab) ── */
+.profile-card {
+    text-align: center;
+    padding: 30px 20px 16px;
 }
 
-p {
-    margin: 10px 0;
+.profile-card h2 { margin-top: 14px; font-size: 22px; }
+.profile-card p  { color: #555; margin: 6px 0; }
+
+/* ── Profile Image Circle ── */
+.profile-img-circle {
+    width: 110px;
+    height: 110px;
+    min-width: 110px;
+    min-height: 110px;
+    max-width: 110px;
+    max-height: 110px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 3px solid #3498db;
+    background: #e8edf2;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.12);
+    flex-shrink: 0;
 }
 
-a {
-    color: #2980b9;
-    text-decoration: none;
+.profile-img-circle img {
+    width: 110px !important;
+    height: 110px !important;
+    min-width: 110px !important;
+    min-height: 110px !important;
+    max-width: 110px !important;
+    max-height: 110px !important;
+    object-fit: cover !important;
+    display: block;
+    border-radius: 50%;
 }
 
-a:hover {
-    text-decoration: underline;
+/* ── Info box ── */
+.user-info {
+    margin: 18px auto;
+    padding: 16px 22px;
+    background: #f8f9fb;
+    border-radius: 8px;
+    border-left: 4px solid #3498db;
+    max-width: 460px;
+    text-align: left;
 }
 
-/* Profile Form Styles */
-.profile-form {
-    margin-top: 20px;
+.user-info p { margin: 8px 0; color: #444; font-size: 14px; }
+.user-info p strong { color: #2c3e50; display: inline-block; min-width: 120px; }
+
+/* ── Alert Messages ── */
+.alert {
+    padding: 12px 16px;
+    margin-bottom: 18px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
 }
 
-.form-group {
-    margin-bottom: 15px;
+.alert.error   { background: #fde8e8; color: #a61c1c; border-left: 4px solid #e74c3c; }
+.alert.success { background: #e6f9ee; color: #1a5c33; border-left: 4px solid #27ae60; }
+
+/* ── Forms ── */
+.profile-form,
+.booking-form {
+    margin-top: 4px;
+    max-width: 500px;
 }
+
+.form-group { margin-bottom: 16px; }
 
 .form-group label {
     display: block;
-    margin-bottom: 5px;
-    font-weight: bold;
+    margin-bottom: 6px;
+    font-weight: 600;
+    font-size: 13px;
+    color: #444;
 }
 
-.form-group input, .form-group select {
+.form-group input,
+.form-group select,
+.form-group textarea {
     width: 100%;
-    padding: 8px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    box-sizing: border-box;
+    padding: 9px 12px;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    font-size: 14px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    background: #fff;
+    color: #333;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+    border-color: #3498db;
+    box-shadow: 0 0 0 3px rgba(52,152,219,0.15);
+    outline: none;
 }
 
 .form-group input[readonly] {
-    background-color: #e9ecef;
+    background: #f0f2f5;
+    color: #888;
+    cursor: not-allowed;
 }
 
-/* Search Form Styles */
-.search-form, .booking-form {
-    margin-top: 20px;
-}
+/* ── Search ── */
+.search-form { margin-top: 20px; }
 
 .search-group {
     display: flex;
     gap: 10px;
+    align-items: center;
 }
 
 .search-group input {
     flex-grow: 1;
-    padding: 8px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
+    padding: 9px 12px;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    font-size: 14px;
 }
 
-/* Button Styles */
+/* ── Buttons ── */
 .btn {
-    padding: 8px 16px;
-    background-color: #2980b9;
+    display: inline-block;
+    padding: 9px 18px;
+    background: #3498db;
     color: white;
     border: none;
-    border-radius: 4px;
+    border-radius: 6px;
     cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: background 0.2s, transform 0.1s;
+    white-space: nowrap;
 }
 
-.btn:hover {
-    background-color: #3498db;
+.btn:hover          { background: #2980b9; }
+.btn:active         { transform: scale(0.98); }
+.btn.secondary      { background: #6c757d; }
+.btn.secondary:hover{ background: #5a6268; }
+.btn.danger         { background: #e74c3c; }
+.btn.danger:hover   { background: #c0392b; }
+.btn.sm             { padding: 5px 12px; font-size: 12px; }
+
+/* ── Unified Table ── */
+table,
+.admin-table,
+.astrologer-table,
+.appointment-table,
+.client-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 4px;
+    font-size: 14px;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.07);
 }
 
-/* Alert Styles */
-.alert {
-    padding: 10px;
-    margin-bottom: 20px;
-    border-radius: 4px;
+table thead,
+.admin-table thead,
+.astrologer-table thead,
+.appointment-table thead,
+.client-table thead {
+    background: #2c3e50;
+    color: #fff;
 }
 
-.alert.error {
-    background-color: #f8d7da;
-    color: #721c24;
+table th,
+.admin-table th,
+.astrologer-table th,
+.appointment-table th,
+.client-table th {
+    padding: 12px 14px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 13px;
+    letter-spacing: 0.2px;
 }
 
-.alert.success {
-    background-color: #d4edda;
-    color: #155724;
+table td,
+.admin-table td,
+.astrologer-table td,
+.appointment-table td,
+.client-table td {
+    padding: 11px 14px;
+    border-bottom: 1px solid #eef0f3;
+    vertical-align: middle;
+    color: #444;
+    font-size: 13px;
 }
 
-/* List Styles */
-.service-list, .astrologer-list, .payment-list, .report-list {
-    list-style: none;
-    padding: 0;
+table tbody tr:last-child td,
+.admin-table tbody tr:last-child td,
+.astrologer-table tbody tr:last-child td,
+.appointment-table tbody tr:last-child td,
+.client-table tbody tr:last-child td { border-bottom: none; }
+
+table tbody tr:nth-child(even),
+.admin-table tbody tr:nth-child(even),
+.astrologer-table tbody tr:nth-child(even),
+.appointment-table tbody tr:nth-child(even),
+.client-table tbody tr:nth-child(even) { background: #f8f9fb; }
+
+table tbody tr:hover,
+.admin-table tbody tr:hover,
+.astrologer-table tbody tr:hover,
+.appointment-table tbody tr:hover,
+.client-table tbody tr:hover { background: #eef4fb; }
+
+/* actions cell – keep buttons tight */
+.actions-cell { white-space: nowrap; }
+.actions-cell .btn + .btn { margin-left: 6px; }
+
+/* ── Status badges ── */
+.badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: capitalize;
 }
 
-.service-list li, .astrologer-list li, .payment-list li, .report-list li {
-    padding: 10px;
-    border-bottom: 1px solid #eee;
+.badge.confirmed  { background: #d4edda; color: #155724; }
+.badge.pending    { background: #fff3cd; color: #856404; }
+.badge.cancelled  { background: #f8d7da; color: #721c24; }
+.badge.admin      { background: #cce5ff; color: #004085; }
+.badge.client     { background: #e2e3e5; color: #383d41; }
+
+/* ── Lists ── */
+.service-list, .payment-list, .report-list {
+    list-style: none; padding: 0; margin: 0;
 }
 
-.service-list li:last-child, .astrologer-list li:last-child, 
-.payment-list li:last-child, .report-list li:last-child {
-    border-bottom: none;
+.service-list li, .payment-list li, .report-list li {
+    padding: 12px 14px;
+    border-bottom: 1px solid #eef0f3;
+    font-size: 14px;
+    color: #444;
 }
 
-  .user-info {
-            margin: 10px 0;
-            padding: 10px;
-            background-color: #f8f9fa;
-            border-radius: 5px;
-            text-align: left;
-        }
-        .user-info p {
-            margin: 5px 0;
-        }
-        .astrologer-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-        }
-        .astrologer-table th, .astrologer-table td {
-            border: 1px solid #ddd;
-            padding: 8px;
-            text-align: left;
-        }
-        .astrologer-table th {
-            background-color: #f2f2f2;
-            font-weight: bold;
-        }
-        .astrologer-table tr:nth-child(even) {
-            background-color: #f9f9f9;
-        }
-        .astrologer-table tr:hover {
-            background-color: #f1f1f1;
-        }
+.service-list li:last-child,
+.payment-list li:last-child,
+.report-list li:last-child { border-bottom: none; }
 
-/* Responsive Design */
+/* ── Tab panels (client SPA) ── */
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+.dashboard-container { visibility: hidden; }
+.dashboard-container.ready { visibility: visible; }
+
+/* ── Responsive ── */
 @media (max-width: 768px) {
-    .dashboard {
-        flex-direction: column;
-    }
+    .dashboard { flex-direction: column; }
+    .sidebar { width: 100%; }
+    .content { padding: 14px; }
 
-    .sidebar {
-        width: 100%;
-    }
+    .search-group { flex-direction: column; align-items: stretch; }
+    .search-group input, .search-group button { width: 100%; }
 
-    .content {
-        padding: 10px;
-    }
+    .profile-form, .booking-form { max-width: 100%; }
 
-    .search-group {
-        flex-direction: column;
-    }
+    table, .admin-table, .astrologer-table,
+    .appointment-table, .client-table { font-size: 12px; }
 
-    .search-group input, .search-group button {
-        width: 100%;
-    }
+    table th, table td,
+    .admin-table th, .admin-table td,
+    .astrologer-table th, .astrologer-table td,
+    .appointment-table th, .appointment-table td { padding: 9px 10px; }
+
+    .page-header { flex-direction: column; gap: 10px; align-items: flex-start; }
 }

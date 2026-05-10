@@ -5,142 +5,191 @@ import com.vedology.model.User;
 import com.vedology.service.ClientDashboardService;
 import com.vedology.util.PasswordUtil;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.MultipartConfig;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
+import jakarta.servlet.http.Part;
 
+import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.LocalTime;
-import java.time.format.DateTimeParseException;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
-/**
- * ClientDashboardController handles requests for the client dash board, including
- * profile editing, service search, astrologer list, and other features.
- */
 @WebServlet(asyncSupported = true, urlPatterns = { "/client-dashboard" })
+@MultipartConfig(
+    fileSizeThreshold = 1024 * 1024 * 2,
+    maxFileSize       = 1024 * 1024 * 5,
+    maxRequestSize    = 1024 * 1024 * 10
+)
 public class ClientDashboardController extends HttpServlet {
     private static final long serialVersionUID = 1L;
+    private static final String UPLOAD_DIR = "images" + File.separator + "profiles";
 
+    // ===================== GET =====================
     @Override
-    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        HttpSession session = req.getSession();
-        User user = (User) session.getAttribute("user");
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp)
+            throws ServletException, IOException {
 
-        System.out.println("doGet - Session ID: " + (session != null ? session.getId() : "null") +
-                           ", User: " + (user != null ? user.getEmail() + ", UserId=" + user.getUserId() : "null"));
+        HttpSession session = req.getSession(false);
+        User user = (session != null) ? (User) session.getAttribute("user") : null;
 
         if (user == null) {
-            System.out.println("User session not found, redirecting to login");
             resp.sendRedirect(req.getContextPath() + "/login");
             return;
         }
 
         ClientDashboardService service = new ClientDashboardService();
-        String tab = req.getParameter("tab");
 
-        if ("astrologers".equals(tab)) {
-            List<Astrologer> astrologers = service.getAstrologerList();
-            req.setAttribute("astrologers", astrologers);
-            System.out.println("Astrologers loaded for client: " + (astrologers != null ? astrologers.size() : 0));
-        }
+        // Load astrologers for all tabs
+        List<Astrologer> astrologers = service.getAstrologerList();
+        req.setAttribute("astrologers", astrologers);
 
-        // Flash messages from ChangePasswordController (stored in session)
-        String pwError = (String) session.getAttribute("changePasswordError");
-        if (pwError != null) {
-            req.setAttribute("error", pwError);
-            session.removeAttribute("changePasswordError");
-        }
-        String pwSuccess = (String) session.getAttribute("passwordChangeSuccess");
-        if (pwSuccess != null) {
-            req.setAttribute("message", pwSuccess);
-            session.removeAttribute("passwordChangeSuccess");
-        }
-
+        // Load fresh profile
         User profile = service.getUserProfile(user.getEmail());
         if (profile != null) {
+            if (profile.getRole() == null) profile.setRole(user.getRole());
+            if (profile.getProfileImage() != null && profile.getProfileImage().trim().isEmpty()) {
+                profile.setProfileImage(null);
+            }
             req.setAttribute("userProfile", profile);
+            session.setAttribute("user", profile);
+
+            // FIXED: Pass email (String) to match service method
+            List<Map<String, String>> appointments = service.getAppointmentsForUser(profile.getEmail());
+            req.setAttribute("appointments", appointments);
         } else {
-            req.setAttribute("error", "Unable to load profile.");
+            req.setAttribute("userProfile", user);
+            req.setAttribute("error", "Unable to load profile from database.");
+
+            List<Map<String, String>> appointments = service.getAppointmentsForUser(user.getEmail());
+            req.setAttribute("appointments", appointments);
         }
 
         req.getRequestDispatcher("/WEB-INF/pages/clientDashboard.jsp").forward(req, resp);
     }
 
+    // ===================== POST =====================
     @Override
-    protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        HttpSession session = req.getSession();
-        User user = (User) session.getAttribute("user");
+    protected void doPost(HttpServletRequest req, HttpServletResponse resp)
+            throws ServletException, IOException {
 
-        System.out.println("doPost - Session ID: " + (session != null ? session.getId() : "null") +
-                           ", User: " + (user != null ? user.getEmail() + ", UserId=" + user.getUserId() : "null"));
+        HttpSession session = req.getSession(false);
+        User currentUser = (session != null) ? (User) session.getAttribute("user") : null;
 
-        if (user == null) {
-            System.out.println("User session lost during post, redirecting to login");
+        if (currentUser == null) {
             resp.sendRedirect(req.getContextPath() + "/login");
             return;
         }
 
-        ClientDashboardService service = new ClientDashboardService();
         String action = req.getParameter("action");
-        String tab = req.getParameter("tab");
+        ClientDashboardService service = new ClientDashboardService();
 
         if ("updateProfile".equals(action)) {
+
             User updatedUser = new User();
-            updatedUser.setUserId(user.getUserId());
-            updatedUser.setEmail(user.getEmail());
+            updatedUser.setUserId(currentUser.getUserId());
+            updatedUser.setEmail(currentUser.getEmail());
+            updatedUser.setRole(currentUser.getRole());
             updatedUser.setFullName(req.getParameter("fullName"));
             updatedUser.setPhone(req.getParameter("phone"));
-            String timeOfBirthStr = req.getParameter("timeOfBirth");
-            LocalTime timeOfBirth = null;
+
+            // Time of Birth
+            String timeStr = req.getParameter("timeOfBirth");
             try {
-                timeOfBirth = LocalTime.parse(timeOfBirthStr);
-                updatedUser.setTimeOfBirth(timeOfBirth);
-            } catch (DateTimeParseException e) {
-                req.setAttribute("error", "Invalid time of birth format. Use HH:mm (e.g., 14:30).");
-                req.setAttribute("userProfile", user);
-                req.getRequestDispatcher("/WEB-INF/pages/clientDashboard.jsp").forward(req, resp);
+                if (timeStr != null && !timeStr.trim().isEmpty()) {
+                    updatedUser.setTimeOfBirth(LocalTime.parse(timeStr));
+                } else {
+                    updatedUser.setTimeOfBirth(currentUser.getTimeOfBirth());
+                }
+            } catch (Exception e) {
+                session.setAttribute("profileError", "Invalid time format. Use HH:MM.");
+                resp.sendRedirect(req.getContextPath() + "/client-dashboard?tab=edit");
                 return;
             }
-            String newPassword = req.getParameter("password");
 
-            if (newPassword != null && !newPassword.trim().isEmpty()) {
-                // encrypt(email_as_key, password) — matches PasswordUtil scheme
-                updatedUser.setPassword(PasswordUtil.encrypt(updatedUser.getEmail(), newPassword));
+            // Profile Image Upload
+            String savedImageName = currentUser.getProfileImage(); // keep existing by default
+            try {
+                Part filePart = req.getPart("profileImage");
+                if (filePart != null && filePart.getSize() > 0) {
+                    String originalName = getSubmittedFileName(filePart);
+                    if (originalName != null && !originalName.isEmpty()) {
+                        String lower = originalName.toLowerCase();
+                        if (lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".png")) {
+                            String ext = originalName.substring(originalName.lastIndexOf("."));
+                            String newFileName = "user_" + currentUser.getUserId() + "_"
+                                    + UUID.randomUUID().toString().substring(0, 8) + ext;
+
+                            String uploadPath = getServletContext().getRealPath("") + File.separator + UPLOAD_DIR;
+                            Path dir = Paths.get(uploadPath);
+                            if (!Files.exists(dir)) Files.createDirectories(dir);
+
+                            filePart.write(uploadPath + File.separator + newFileName);
+                            savedImageName = newFileName;
+                            System.out.println("Profile image saved: " + uploadPath + File.separator + newFileName);
+                        } else {
+                            session.setAttribute("profileError", "Only JPG and PNG images are allowed.");
+                            resp.sendRedirect(req.getContextPath() + "/client-dashboard?tab=edit");
+                            return;
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                System.out.println("Image upload error: " + e.getMessage());
+                // Keep existing image on upload error
+            }
+            // Normalise empty to null
+            updatedUser.setProfileImage((savedImageName != null && !savedImageName.trim().isEmpty())
+                    ? savedImageName.trim() : null);
+
+            // Password
+            String newPass     = req.getParameter("newPassword");
+            String confirmPass = req.getParameter("confirmPassword");
+            if (newPass != null && !newPass.trim().isEmpty()) {
+                if (!newPass.equals(confirmPass)) {
+                    session.setAttribute("profileError", "Passwords do not match.");
+                    resp.sendRedirect(req.getContextPath() + "/client-dashboard?tab=edit");
+                    return;
+                }
+                updatedUser.setPassword(PasswordUtil.encrypt(updatedUser.getEmail(), newPass));
             } else {
-                updatedUser.setPassword(user.getPassword());
+                // Preserve existing password
+                User freshProfile = service.getUserProfile(currentUser.getEmail());
+                updatedUser.setPassword(freshProfile != null ? freshProfile.getPassword() : currentUser.getPassword());
             }
 
-            boolean updateSuccess = service.updateUserProfile(updatedUser);
-            if (updateSuccess) {
+            // Save
+            boolean success = service.updateUserProfile(updatedUser);
+            if (success) {
+                // Update session with the saved data (including new image name)
                 session.setAttribute("user", updatedUser);
-                req.setAttribute("message", "Profile updated successfully.");
-                System.out.println("Profile updated for UserId: " + updatedUser.getUserId());
+                session.setAttribute("profileSuccess", "Profile updated successfully!");
             } else {
-                req.setAttribute("error", "Failed to update profile. Check logs for details.");
-                System.out.println("Profile update failed for UserId: " + user.getUserId());
+                session.setAttribute("profileError", "Failed to update profile. Please try again.");
             }
-            req.setAttribute("userProfile", updatedUser);
-        } else if ("search".equals(action)) {
-            String keyword = req.getParameter("keyword");
-            List<String> services = service.searchServices(keyword);
-            req.setAttribute("services", services);
-            req.setAttribute("userProfile", service.getUserProfile(user.getEmail()));
-        } else if ("bookAppointment".equals(action)) {
-            String astrologer = req.getParameter("astrologer");
-            String date = req.getParameter("date");
-            String time = req.getParameter("time");
-            boolean booked = service.bookAppointment(user.getEmail(), astrologer, date, time);
-            if (booked) {
-                req.setAttribute("message", "Appointment booked successfully.");
-            } else {
-                req.setAttribute("error", "Failed to book appointment.");
-            }
-            req.setAttribute("userProfile", service.getUserProfile(user.getEmail()));
+
+            // Redirect back to edit tab (PRG pattern — prevents double-submit on refresh)
+            resp.sendRedirect(req.getContextPath() + "/client-dashboard?tab=edit");
+            return;
         }
 
-        req.getRequestDispatcher("/WEB-INF/pages/clientDashboard.jsp").forward(req, resp);
+        resp.sendRedirect(req.getContextPath() + "/client-dashboard");
+    }
+
+    private String getSubmittedFileName(Part part) {
+        for (String content : part.getHeader("content-disposition").split(";")) {
+            if (content.trim().startsWith("filename")) {
+                return content.substring(content.indexOf('=') + 1).trim().replace("\"", "");
+            }
+        }
+        return null;
     }
 }

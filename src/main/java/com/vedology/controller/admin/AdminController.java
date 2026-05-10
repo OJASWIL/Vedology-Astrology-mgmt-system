@@ -1,15 +1,23 @@
 package com.vedology.controller.admin;
 
-import com.vedology.model.User;
 import com.vedology.model.Astrologer;
+import com.vedology.model.User;
 import com.vedology.service.AdminService;
+import com.vedology.util.PasswordUtil;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.MultipartConfig;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
+import jakarta.servlet.http.Part;
+
+import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -17,312 +25,409 @@ import java.sql.SQLException;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.HashMap;
-import java.util.Map;
-import com.vedology.config.DbConfig;
+import java.util.UUID;
 
-@WebServlet(asyncSupported = true, urlPatterns = { "/admin/manage" })
+@MultipartConfig(
+    fileSizeThreshold = 1024 * 1024 * 2,
+    maxFileSize      = 1024 * 1024 * 5,
+    maxRequestSize   = 1024 * 1024 * 10
+)
+@WebServlet(urlPatterns = {
+    "/admin/manage",
+    "/admin/clients",
+    "/admin/clients/*"
+})
 public class AdminController extends HttpServlet {
-    private static final long serialVersionUID = 1L;
 
+    private static final long serialVersionUID = 1L;
+    private static final String UPLOAD_DIR = "images" + File.separator + "profiles";
+
+    // ===================== GET =====================
     @Override
-    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp)
+            throws ServletException, IOException {
+
         HttpSession session = req.getSession(false);
         User user = (session != null) ? (User) session.getAttribute("user") : null;
 
-        System.out.println("AdminController doGet - Session ID: " + (session != null ? session.getId() : "null") + 
-                           ", User: " + (user != null ? user.getEmail() + ", Role=" + user.getRole() : "null"));
-
-        if (user == null || !"admin".equals(user.getRole())) {
-            System.out.println("Redirecting to login due to null user or invalid role: " + 
-                               (user != null ? "Email=" + user.getEmail() + ", Role=" + user.getRole() : "null"));
-            resp.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
-            resp.setHeader("Pragma", "no-cache");
-            resp.setDateHeader("Expires", 0);
+        if (user == null || !"admin".equalsIgnoreCase(user.getRole())) {
             resp.sendRedirect(req.getContextPath() + "/login");
             return;
         }
 
-        AdminService service = new AdminService();
-        String tab = req.getParameter("tab");
+        String uri = req.getRequestURI();
+        String pathInfo = req.getPathInfo();
 
-        System.out.println("Processing tab: " + tab);
+        try {
+            // ===== CLIENT ROUTES =====
+            if (uri.contains("/admin/clients")) {
 
-        if (tab == null || tab.isEmpty()) {
-            req.setAttribute("defaultTab", "dashboard");
-        } else if ("edit".equals(tab)) {
-            List<User> clients = getAllClients();
-            req.setAttribute("clients", clients);
-            System.out.println("Clients loaded: " + (clients != null ? clients.size() : 0));
-        } else if ("astrologers".equals(tab) || "book".equals(tab)) {
-            List<Astrologer> astrologers = getAllAstrologers();
-            req.setAttribute("astrologers", astrologers);
-            System.out.println("Astrologers loaded: " + (astrologers != null ? astrologers.size() : 0));
-        } else if ("search".equals(tab)) {
-            req.setAttribute("services", new ArrayList<>());
-        } else if ("payments".equals(tab)) {
-            List<String> payments = getAllPayments();
-            req.setAttribute("payments", payments);
-            System.out.println("Payments loaded: " + (payments != null ? payments.size() : 0));
-        } else if ("reports".equals(tab)) {
-            List<String> reports = getAllReports();
-            req.setAttribute("reports", reports);
-            System.out.println("Reports loaded: " + (reports != null ? reports.size() : 0));
-        } else if ("horoscope".equals(tab)) {
-            req.setAttribute("horoscopes", getAllHoroscopes()); 
-        } else if ("changePassword".equals(tab)) {
-            // Just render the form — flash messages come from session
-        }
+                if (pathInfo == null || "/".equals(pathInfo) || "/list".equals(pathInfo)) {
+                    // LIST
+                    req.setAttribute("clients", getAllClients());
+                    req.getRequestDispatcher("/WEB-INF/pages/admin/clients/list.jsp").forward(req, resp);
 
-        // Flash messages from ChangePasswordController (stored in session)
-        HttpSession session2 = req.getSession(false);
-        if (session2 != null) {
-            String pwError = (String) session2.getAttribute("changePasswordError");
-            if (pwError != null) {
-                req.setAttribute("error", pwError);
-                session2.removeAttribute("changePasswordError");
+                } else if ("/add".equals(pathInfo)) {
+                    // SHOW ADD FORM
+                    req.getRequestDispatcher("/WEB-INF/pages/admin/clients/add.jsp").forward(req, resp);
+
+                } else if ("/edit".equals(pathInfo)) {
+                    // SHOW EDIT FORM (pre-filled)
+                    String userIdStr = req.getParameter("userId");
+                    if (userIdStr != null && !userIdStr.trim().isEmpty()) {
+                        User client = getClientById(Integer.parseInt(userIdStr));
+                        req.setAttribute("client", client);
+                    }
+                    req.getRequestDispatcher("/WEB-INF/pages/admin/clients/edit.jsp").forward(req, resp);
+
+                } else if ("/delete".equals(pathInfo)) {
+                    // DELETE
+                    String userIdStr = req.getParameter("userId");
+                    if (userIdStr != null && !userIdStr.trim().isEmpty()) {
+                        boolean ok = deleteClient(Integer.parseInt(userIdStr));
+                        session.setAttribute("clientMessage", ok
+                            ? "Client deleted successfully."
+                            : "Failed to delete client.");
+                    }
+                    resp.sendRedirect(req.getContextPath() + "/admin/clients");
+                }
+                return;
             }
-            String pwSuccess = (String) session2.getAttribute("passwordChangeSuccess");
-            if (pwSuccess != null) {
-                req.setAttribute("message", pwSuccess);
-                session2.removeAttribute("passwordChangeSuccess");
-            }
-        }
 
-        req.getRequestDispatcher("/WEB-INF/pages/adminDashboard.jsp").forward(req, resp);
+            // ===== MAIN DASHBOARD TABS =====
+            String tab = req.getParameter("tab");
+
+            // Always reload admin profile from DB
+            com.vedology.service.ClientDashboardService profileService =
+                    new com.vedology.service.ClientDashboardService();
+            User freshUser = profileService.getUserProfile(user.getEmail());
+            if (freshUser != null) {
+                if (freshUser.getRole() == null) freshUser.setRole(user.getRole());
+                session.setAttribute("user", freshUser);
+            }
+
+            if (tab == null || tab.isEmpty() || "dashboard".equals(tab)) {
+                // nothing extra needed
+            } else if ("edit".equals(tab)) {
+                req.setAttribute("clients", getAllClients());
+            } else if ("astrologers".equals(tab)) {
+                req.setAttribute("astrologers", getAllAstrologers());
+            } else if ("book".equals(tab)) {
+                req.setAttribute("astrologers", getAllAstrologers());
+                req.setAttribute("clients", getAllClients());
+            } else if ("payments".equals(tab)) {
+                req.setAttribute("payments", getAllPayments());
+            } else if ("reports".equals(tab)) {
+                req.setAttribute("reports", getAllReports());
+            } else if ("horoscope".equals(tab)) {
+                req.setAttribute("horoscopes", getAllHoroscopes());
+            }
+
+            req.getRequestDispatcher("/WEB-INF/pages/adminDashboard.jsp").forward(req, resp);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            req.setAttribute("error", "An error occurred: " + e.getMessage());
+            req.getRequestDispatcher("/WEB-INF/pages/adminDashboard.jsp").forward(req, resp);
+        }
     }
 
+    // ===================== POST =====================
     @Override
-    protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+    protected void doPost(HttpServletRequest req, HttpServletResponse resp)
+            throws ServletException, IOException {
+
         HttpSession session = req.getSession(false);
         User user = (session != null) ? (User) session.getAttribute("user") : null;
 
-        System.out.println("AdminController doPost - Session ID: " + (session != null ? session.getId() : "null") + 
-                           ", User: " + (user != null ? user.getEmail() + ", Role=" + user.getRole() : "null"));
-
-        if (user == null || !"admin".equals(user.getRole())) {
-            System.out.println("Redirecting to login in post due to null user or invalid role: " + 
-                               (user != null ? "Email=" + user.getEmail() + ", Role=" + user.getRole() : "null"));
-            resp.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
-            resp.setHeader("Pragma", "no-cache");
-            resp.setDateHeader("Expires", 0);
+        if (user == null || !"admin".equalsIgnoreCase(user.getRole())) {
             resp.sendRedirect(req.getContextPath() + "/login");
             return;
         }
 
-        AdminService service = new AdminService();
-        String action = req.getParameter("action");
-        String tab = req.getParameter("tab");
+        String uri = req.getRequestURI();
+        String pathInfo = req.getPathInfo();
 
-        if ("create".equals(action)) {
-            User newUser = new User();
-            newUser.setEmail(req.getParameter("email"));
-            newUser.setFullName(req.getParameter("fullName"));
-            newUser.setTimeOfBirth(LocalTime.parse(req.getParameter("timeOfBirth")));
-            newUser.setPhone(req.getParameter("phone"));
-            newUser.setPassword("defaultPassword");
-            if (createClient(newUser)) {
-                req.setAttribute("message", "Client created successfully.");
-            } else {
-                req.setAttribute("error", "Failed to create client.");
-            }
-            req.setAttribute("clients", getAllClients());
-        } else if ("update".equals(action)) {
-            User updatedUser = new User();
-            updatedUser.setUserId(Integer.parseInt(req.getParameter("userId")));
-            updatedUser.setEmail(req.getParameter("email"));
-            updatedUser.setFullName(req.getParameter("fullName"));
-            updatedUser.setTimeOfBirth(LocalTime.parse(req.getParameter("timeOfBirth")));
-            updatedUser.setPhone(req.getParameter("phone"));
-            if (updateClient(updatedUser)) {
-                req.setAttribute("message", "Client updated successfully.");
-            } else {
-                req.setAttribute("error", "Failed to update client.");
-            }
-            req.setAttribute("clients", getAllClients());
-        } else if ("delete".equals(action)) {
-            int userId = Integer.parseInt(req.getParameter("userId"));
-            if (deleteClient(userId)) {
-                req.setAttribute("message", "Client deleted successfully.");
-            } else {
-                req.setAttribute("error", "Failed to delete client.");
-            }
-            req.setAttribute("clients", getAllClients());
-        } else if ("search".equals(action)) {
-            String keyword = req.getParameter("keyword").toLowerCase();
-            List<String> services = getAllServices();
-            List<String> filteredServices = new ArrayList<>();
-            for (String allService : services) {
-                if (allService.toLowerCase().contains(keyword)) {
-                    filteredServices.add(allService);
+        try {
+            // ===== CLIENT POST ROUTES =====
+            if (uri.contains("/admin/clients")) {
+
+                if ("/add".equals(pathInfo)) {
+                    User newUser = new User();
+                    newUser.setFullName(req.getParameter("fullName"));
+                    newUser.setEmail(req.getParameter("email"));
+                    newUser.setPhone(req.getParameter("phone"));
+                    String tob = req.getParameter("timeOfBirth");
+                    if (tob != null && !tob.isEmpty()) newUser.setTimeOfBirth(LocalTime.parse(tob));
+                    String pass = req.getParameter("password");
+                    newUser.setPassword(pass != null && !pass.isEmpty()
+                        ? PasswordUtil.encrypt(newUser.getEmail(), pass) : "defaultPassword");
+
+                    if (createClient(newUser)) {
+                        session.setAttribute("clientMessage", "Client added successfully!");
+                        resp.sendRedirect(req.getContextPath() + "/admin/clients");
+                    } else {
+                        req.setAttribute("error", "Failed to add client. Email may already exist.");
+                        req.getRequestDispatcher("/WEB-INF/pages/admin/clients/add.jsp").forward(req, resp);
+                    }
+                    return;
+                }
+
+                if ("/edit".equals(pathInfo)) {
+                    User updatedUser = new User();
+                    updatedUser.setUserId(Integer.parseInt(req.getParameter("userId")));
+                    updatedUser.setFullName(req.getParameter("fullName"));
+                    updatedUser.setEmail(req.getParameter("email"));
+                    updatedUser.setPhone(req.getParameter("phone"));
+                    String tob = req.getParameter("timeOfBirth");
+                    if (tob != null && !tob.isEmpty()) updatedUser.setTimeOfBirth(LocalTime.parse(tob));
+
+                    if (updateClient(updatedUser)) {
+                        session.setAttribute("clientMessage", "Client updated successfully!");
+                        resp.sendRedirect(req.getContextPath() + "/admin/clients");
+                    } else {
+                        req.setAttribute("error", "Failed to update client.");
+                        req.setAttribute("client", updatedUser);
+                        req.getRequestDispatcher("/WEB-INF/pages/admin/clients/edit.jsp").forward(req, resp);
+                    }
+                    return;
                 }
             }
-            req.setAttribute("services", filteredServices);
-        } else if ("bookAppointment".equals(action)) {
-            String clientEmail = req.getParameter("clientEmail");
-            String astrologerId = req.getParameter("astrologer");
-            String date = req.getParameter("date");
-            String time = req.getParameter("time");
-            if (service.bookAppointment(clientEmail, astrologerId, date, time)) {
-                req.setAttribute("message", "Appointment booked successfully.");
-            } else {
-                req.setAttribute("error", "Failed to book appointment.");
-            }
-            req.setAttribute("astrologers", getAllAstrologers());
-        } else if ("viewHoroscope".equals(action)) {
-            req.setAttribute("horoscopes", getAllHoroscopes()); // Use getAllHoroscopes instead of getHoroscopesForClient
-        }
 
-        req.getRequestDispatcher("/WEB-INF/pages/adminDashboard.jsp").forward(req, resp);
+            // ===== ADMIN EDIT PROFILE (with image upload) =====
+            String action = req.getParameter("action");
+            if ("editProfile".equals(action)) {
+                com.vedology.service.ClientDashboardService profileService =
+                        new com.vedology.service.ClientDashboardService();
+
+                User updatedAdmin = new User();
+                updatedAdmin.setUserId(user.getUserId());
+                updatedAdmin.setRole(user.getRole());
+                updatedAdmin.setFullName(req.getParameter("fullName"));
+                updatedAdmin.setPhone(req.getParameter("phone"));
+                String email = req.getParameter("email");
+                updatedAdmin.setEmail(email != null && !email.isEmpty() ? email : user.getEmail());
+                String tob = req.getParameter("timeOfBirth");
+                if (tob != null && !tob.isEmpty()) updatedAdmin.setTimeOfBirth(LocalTime.parse(tob));
+
+                // Image upload
+                String savedImageName = user.getProfileImage();
+                try {
+                    Part filePart = req.getPart("profileImage");
+                    if (filePart != null && filePart.getSize() > 0) {
+                        String originalName = getSubmittedFileName(filePart);
+                        if (originalName != null && !originalName.isEmpty()) {
+                            String lower = originalName.toLowerCase();
+                            if (lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".png")) {
+                                String ext = originalName.substring(originalName.lastIndexOf("."));
+                                String newFileName = "user_" + user.getUserId() + "_"
+                                        + UUID.randomUUID().toString().substring(0, 8) + ext;
+                                String uploadPath = getServletContext().getRealPath("") + File.separator + UPLOAD_DIR;
+                                Path dir = Paths.get(uploadPath);
+                                if (!Files.exists(dir)) Files.createDirectories(dir);
+                                filePart.write(uploadPath + File.separator + newFileName);
+                                savedImageName = newFileName;
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    System.out.println("Admin image upload error: " + e.getMessage());
+                }
+                updatedAdmin.setProfileImage(savedImageName);
+
+                // Password
+                String newPass = req.getParameter("newPassword");
+                String confirmPass = req.getParameter("confirmPassword");
+                if (newPass != null && !newPass.trim().isEmpty()) {
+                    if (newPass.equals(confirmPass)) {
+                        updatedAdmin.setPassword(PasswordUtil.encrypt(updatedAdmin.getEmail(), newPass));
+                    } else {
+                        session.setAttribute("profileError", "Passwords do not match.");
+                        resp.sendRedirect(req.getContextPath() + "/admin/manage?tab=editProfile");
+                        return;
+                    }
+                } else {
+                    User freshProfile = profileService.getUserProfile(user.getEmail());
+                    updatedAdmin.setPassword(freshProfile != null ? freshProfile.getPassword() : user.getPassword());
+                }
+
+                boolean ok = profileService.updateUserProfile(updatedAdmin);
+                if (ok) {
+                    session.setAttribute("user", updatedAdmin);
+                    session.setAttribute("profileSuccess", "Profile updated successfully!");
+                } else {
+                    session.setAttribute("profileError", "Failed to update profile.");
+                }
+                resp.sendRedirect(req.getContextPath() + "/admin/manage?tab=editProfile");
+                return;
+            }
+
+            // ===== ADMIN BOOK APPOINTMENT =====
+            if ("bookAppointment".equals(action)) {
+                String clientEmail = req.getParameter("clientEmail");
+                String astrologerIdStr = req.getParameter("astrologer");
+                String date = req.getParameter("date");
+                String time = req.getParameter("time");
+
+                if (clientEmail != null && !clientEmail.isEmpty()
+                        && astrologerIdStr != null && !astrologerIdStr.isEmpty()
+                        && date != null && !date.isEmpty()
+                        && time != null && !time.isEmpty()) {
+                    try {
+                        int astrologerId = Integer.parseInt(astrologerIdStr);
+                        com.vedology.service.ClientDashboardService svc =
+                                new com.vedology.service.ClientDashboardService();
+                        boolean ok = svc.bookAppointment(clientEmail, astrologerId, date, time);
+                        if (ok) {
+                            session.setAttribute("profileSuccess", "Appointment booked successfully for " + clientEmail + "!");
+                        } else {
+                            session.setAttribute("profileError", "Failed to book appointment. Check client email and try again.");
+                        }
+                    } catch (NumberFormatException nfe) {
+                        session.setAttribute("profileError", "Invalid astrologer selection.");
+                    }
+                } else {
+                    session.setAttribute("profileError", "All booking fields are required.");
+                }
+                resp.sendRedirect(req.getContextPath() + "/admin/manage?tab=book");
+                return;
+            }
+
+            req.getRequestDispatcher("/WEB-INF/pages/adminDashboard.jsp").forward(req, resp);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            req.setAttribute("error", "Error: " + e.getMessage());
+            resp.sendRedirect(req.getContextPath() + "/admin/clients");
+        }
+    }
+
+    // ===================== HELPERS =====================
+    private User getClientById(int userId) {
+        try (Connection conn = com.vedology.config.DbConfig.getDbConnection();
+             PreparedStatement stmt = conn.prepareStatement(
+                "SELECT UserId, Email, Role, FullName, TimeOfBirth, Phone FROM users WHERE UserId = ? AND Role = 'client'")) {
+            stmt.setInt(1, userId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    User u = new User();
+                    u.setUserId(rs.getInt("UserId"));
+                    u.setEmail(rs.getString("Email"));
+                    u.setRole(rs.getString("Role"));
+                    u.setFullName(rs.getString("FullName"));
+                    String tob = rs.getString("TimeOfBirth");
+                    if (tob != null) u.setTimeOfBirth(LocalTime.parse(tob));
+                    u.setPhone(rs.getString("Phone"));
+                    return u;
+                }
+            }
+        } catch (Exception e) { e.printStackTrace(); }
+        return null;
     }
 
     private List<User> getAllClients() {
         List<User> clients = new ArrayList<>();
-        try (Connection conn = DbConfig.getDbConnection();
-             PreparedStatement stmt = conn.prepareStatement("SELECT UserId, Email, Role, FullName, TimeOfBirth, Phone FROM users WHERE Role = 'client'");
+        try (Connection conn = com.vedology.config.DbConfig.getDbConnection();
+             PreparedStatement stmt = conn.prepareStatement(
+                "SELECT UserId, Email, Role, FullName, TimeOfBirth, Phone FROM users WHERE Role = 'client'");
              ResultSet rs = stmt.executeQuery()) {
             while (rs.next()) {
-                User user = new User();
-                user.setUserId(rs.getInt("UserId"));
-                user.setEmail(rs.getString("Email"));
-                user.setRole(rs.getString("Role"));
-                user.setFullName(rs.getString("FullName"));
-                String timeOfBirthStr = rs.getString("TimeOfBirth");
-                user.setTimeOfBirth(timeOfBirthStr != null ? LocalTime.parse(timeOfBirthStr) : null);
-                user.setPhone(rs.getString("Phone"));
-                clients.add(user);
+                User u = new User();
+                u.setUserId(rs.getInt("UserId"));
+                u.setEmail(rs.getString("Email"));
+                u.setRole(rs.getString("Role"));
+                u.setFullName(rs.getString("FullName"));
+                String tob = rs.getString("TimeOfBirth");
+                if (tob != null) u.setTimeOfBirth(LocalTime.parse(tob));
+                u.setPhone(rs.getString("Phone"));
+                clients.add(u);
             }
-            System.out.println("getAllClients: Successfully loaded " + clients.size() + " clients");
-        } catch (SQLException | ClassNotFoundException e) {
-            e.printStackTrace();
-            System.err.println("getAllClients: Failed to load clients: " + e.getMessage());
-        }
+        } catch (Exception e) { e.printStackTrace(); }
         return clients;
     }
 
     private List<Astrologer> getAllAstrologers() {
-        List<Astrologer> astrologers = new ArrayList<>();
-        String query = "SELECT AstrologerId, AvailableDays, Address, ContactNumber, ExperienceYear, Specialization FROM astrologer";
-        try (Connection conn = DbConfig.getDbConnection();
-             PreparedStatement stmt = conn.prepareStatement(query);
+        List<Astrologer> list = new ArrayList<>();
+        try (Connection conn = com.vedology.config.DbConfig.getDbConnection();
+             PreparedStatement stmt = conn.prepareStatement(
+                "SELECT AstrologerId, AvailableDays, Address, ContactNumber, ExperienceYear, Specialization FROM astrologer");
              ResultSet rs = stmt.executeQuery()) {
             while (rs.next()) {
-                int astrologerId = rs.getInt("AstrologerId");
-                String availableDays = rs.getString("AvailableDays");
-                String address = rs.getString("Address");
-                String contactNumber = rs.getString("ContactNumber");
-                int experienceYear = rs.getInt("ExperienceYear");
-                String specialization = rs.getString("Specialization");
-
-                Astrologer astrologer = new Astrologer(astrologerId, availableDays, address, 
-                                                      contactNumber, experienceYear, specialization);
-                astrologers.add(astrologer);
+                list.add(new Astrologer(
+                    rs.getInt("AstrologerId"),
+                    rs.getString("AvailableDays"),
+                    rs.getString("Address"),
+                    rs.getString("ContactNumber"),
+                    rs.getInt("ExperienceYear"),
+                    rs.getString("Specialization")));
             }
-            System.out.println("getAllAstrologers: Successfully loaded " + astrologers.size() + " astrologers");
-        } catch (SQLException | ClassNotFoundException e) {
-            e.printStackTrace();
-            System.err.println("getAllAstrologers: Failed to load astrologers: " + e.getMessage());
-        }
-        return astrologers;
-    }
-
-    private List<String> getAllServices() {
-        List<String> services = new ArrayList<>();
-        services.add("Vedic Astrology Consultation");
-        services.add("Numerology Analysis");
-        services.add("Vastu Shastra Assessment");
-        services.add("Palm Reading Session");
-        services.add("Tarot Card Reading");
-        services.add("Daily Horoscope Analysis");
-        services.add("Yearly Horoscope Analysis");
-        services.add("Kundli Matching");
-        services.add("Muhurta Selection");
-        services.add("Gemstone Recommendation");
-        services.add("Panchang Analysis");
-        services.add("Astrological Remedies");
-        return services;
-    }
-
-    private List<String> getAllPayments() {
-        List<String> payments = new ArrayList<>();
-        payments.add("Payment #P001: Rs 8,500.00 on 2025-07-03 for Vedic Astrology Consultation (Client: oj.thapa@example.com)");
-        payments.add("Payment #P002: Rs 5,000.00 on 2025-07-06 for Numerology Analysis (Client: prabuddha.adhikari@example.com)");
-        payments.add("Payment #P003: Rs 7,000.00 on 2025-07-09 for Vastu Shastra Assessment (Client: rahul.lamichhane@example.com)");
-        payments.add("Payment #P004: Rs 4,500.00 on 2025-07-12 for Kundli Matching (Client: anu.sharma@example.com)");
-        payments.add("Payment #P005: Rs 6,000.00 on 2025-07-15 for Gemstone Recommendation (Client: garima.shrestha@example.com)");
-        payments.add("Payment #P006: Rs 3,500.00 on 2025-07-18 for Daily Horoscope Analysis (Client: suraj.kc@example.com)");
-        payments.add("Payment #P007: Rs 9,000.00 on 2025-07-21 for Muhurta Selection (Client: laxmi.poudel@example.com)");
-        return payments;
-    }
-
-    private List<String> getAllReports() {
-        List<String> reports = new ArrayList<>();
-        reports.add("Report #R001: Natal Chart for oj.thapa@example.com, generated on 2025-07-02");
-        reports.add("Report #R002: Yearly Horoscope for prabuddha.adhikari@example.com, generated on 2025-07-05");
-        reports.add("Report #R003: Kundli Matching for rahul.lamichhane@example.com, generated on 2025-07-08");
-        reports.add("Report #R004: Vastu Analysis for anu.sharma@example.com, generated on 2025-07-10");
-        reports.add("Report #R005: Gemstone Recommendation for garima.shrestha@example.com, generated on 2025-07-13");
-        reports.add("Report #R006: Astrological Remedies for suraj.kc@example.com, generated on 2025-07-16");
-        reports.add("Report #R007: Panchang Analysis for laxmi.poudel@example.com, generated on 2025-07-20");
-        return reports;
-    }
-
-    private List<String> getAllHoroscopes() {
-        List<String> horoscopes = new ArrayList<>();
-        horoscopes.add("Horoscope #H001: Aries Forecast for oj.thapa@example.com, generated on 2025-07-02");
-        horoscopes.add("Horoscope #H002: Taurus Forecast for prabuddha.adhikari@example.com, generated on 2025-07-05");
-        horoscopes.add("Horoscope #H003: Gemini Forecast for rahul.lamichhane@example.com, generated on 2025-07-08");
-        horoscopes.add("Horoscope #H004: Cancer Forecast for anu.sharma@example.com, generated on 2025-07-10");
-        horoscopes.add("Horoscope #H005: Leo Forecast for garima.shrestha@example.com, generated on 2025-07-13");
-        horoscopes.add("Horoscope #H006: Virgo Forecast for suraj.kc@example.com, generated on 2025-07-16");
-        horoscopes.add("Horoscope #H007: Libra Forecast for laxmi.poudel@example.com, generated on 2025-07-20");
-        System.out.println("getAllHoroscopes: Loaded " + horoscopes.size() + " horoscopes");
-        return horoscopes;
+        } catch (Exception e) { e.printStackTrace(); }
+        return list;
     }
 
     private boolean createClient(User user) {
-        try (Connection conn = DbConfig.getDbConnection();
+        try (Connection conn = com.vedology.config.DbConfig.getDbConnection();
              PreparedStatement stmt = conn.prepareStatement(
-                     "INSERT INTO users (Email, Password, Role, FullName, TimeOfBirth, Phone) VALUES (?, ?, 'client', ?, ?, ?)")) {
+                "INSERT INTO users (Email, Password, Role, FullName, TimeOfBirth, Phone) VALUES (?, ?, 'client', ?, ?, ?)")) {
             stmt.setString(1, user.getEmail());
             stmt.setString(2, user.getPassword());
             stmt.setString(3, user.getFullName());
             stmt.setString(4, user.getTimeOfBirth() != null ? user.getTimeOfBirth().toString() : null);
             stmt.setString(5, user.getPhone());
-            int rowsAffected = stmt.executeUpdate();
-            return rowsAffected > 0;
-        } catch (SQLException | ClassNotFoundException e) {
-            e.printStackTrace();
-            return false;
-        }
+            return stmt.executeUpdate() > 0;
+        } catch (Exception e) { e.printStackTrace(); return false; }
     }
 
     private boolean updateClient(User user) {
-        try (Connection conn = DbConfig.getDbConnection();
+        try (Connection conn = com.vedology.config.DbConfig.getDbConnection();
              PreparedStatement stmt = conn.prepareStatement(
-                     "UPDATE users SET Email = ?, FullName = ?, TimeOfBirth = ?, Phone = ? WHERE UserId = ?")) {
+                "UPDATE users SET Email=?, FullName=?, TimeOfBirth=?, Phone=? WHERE UserId=?")) {
             stmt.setString(1, user.getEmail());
             stmt.setString(2, user.getFullName());
             stmt.setString(3, user.getTimeOfBirth() != null ? user.getTimeOfBirth().toString() : null);
             stmt.setString(4, user.getPhone());
             stmt.setInt(5, user.getUserId());
-            int rowsAffected = stmt.executeUpdate();
-            return rowsAffected > 0;
-        } catch (SQLException | ClassNotFoundException e) {
-            e.printStackTrace();
-            return false;
-        }
+            return stmt.executeUpdate() > 0;
+        } catch (Exception e) { e.printStackTrace(); return false; }
     }
 
     private boolean deleteClient(int userId) {
-        try (Connection conn = DbConfig.getDbConnection();
-             PreparedStatement stmt = conn.prepareStatement("DELETE FROM users WHERE UserId = ? AND Role = 'client'")) {
+        try (Connection conn = com.vedology.config.DbConfig.getDbConnection();
+             PreparedStatement stmt = conn.prepareStatement(
+                "DELETE FROM users WHERE UserId=? AND Role='client'")) {
             stmt.setInt(1, userId);
-            int rowsAffected = stmt.executeUpdate();
-            return rowsAffected > 0;
-        } catch (SQLException | ClassNotFoundException e) {
-            e.printStackTrace();
-            return false;
+            return stmt.executeUpdate() > 0;
+        } catch (Exception e) { e.printStackTrace(); return false; }
+    }
+
+    private String getSubmittedFileName(Part part) {
+        for (String c : part.getHeader("content-disposition").split(";")) {
+            if (c.trim().startsWith("filename")) {
+                return c.substring(c.indexOf('=') + 1).trim().replace("\"", "");
+            }
         }
+        return null;
+    }
+
+    private List<String> getAllPayments() {
+        List<String> p = new ArrayList<>();
+        p.add("Payment #P001: Rs 8,500 on 2025-07-03 for Vedic Astrology Consultation");
+        p.add("Payment #P002: Rs 5,000 on 2025-07-06 for Numerology Analysis");
+        p.add("Payment #P003: Rs 7,000 on 2025-07-09 for Vastu Shastra Assessment");
+        return p;
+    }
+
+    private List<String> getAllReports() {
+        List<String> r = new ArrayList<>();
+        r.add("Report #R001: Natal Chart - generated on 2025-07-02");
+        r.add("Report #R002: Yearly Horoscope - generated on 2025-07-05");
+        return r;
+    }
+
+    private List<String> getAllHoroscopes() {
+        List<String> h = new ArrayList<>();
+        h.add("Horoscope #H001: Aries Forecast - generated on 2025-07-02");
+        h.add("Horoscope #H002: Taurus Forecast - generated on 2025-07-05");
+        return h;
     }
 }

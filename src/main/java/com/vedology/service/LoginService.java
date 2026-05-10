@@ -4,7 +4,6 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-
 import com.vedology.config.DbConfig;
 import com.vedology.model.User;
 import com.vedology.util.PasswordUtil;
@@ -15,49 +14,35 @@ import com.vedology.util.PasswordUtil;
  */
 public class LoginService {
 
-    private Connection dbConn;
-    private boolean isConnectionError = false;
-
-    /**
-     * Constructor initializes the database connection. Sets the connection error
-     * flag if the connection fails.
-     */
-    public LoginService() {
-        try {
-            dbConn = DbConfig.getDbConnection();
-        } catch (SQLException | ClassNotFoundException ex) {
-            ex.printStackTrace();
-            isConnectionError = true;
-        }
-    }
-
     /**
      * Validates the user credentials against the database records.
+     * Connection is opened and closed within this method to prevent connection leaks.
      *
      * @param astroDetailModel the User object containing user credentials
-     * @return true if the user credentials are valid, false otherwise; null if a
-     *         connection error occurs
+     * @return true if the user credentials are valid, false if not found or password mismatch;
+     *         null if a connection/database error occurs
      */
     public Boolean loginUser(User astroDetailModel) {
-        if (isConnectionError) {
-            System.out.println("Connection Error!");
-            return null;
-        }
-
         String query = "SELECT Email, Password, Role, FullName FROM users WHERE Email = ?";
-        try (PreparedStatement stmt = dbConn.prepareStatement(query)) {
-            stmt.setString(1, astroDetailModel.getEmail()); // Map userName to Email
+
+        try (Connection dbConn = DbConfig.getDbConnection();
+             PreparedStatement stmt = dbConn.prepareStatement(query)) {
+
+            stmt.setString(1, astroDetailModel.getEmail());
             ResultSet result = stmt.executeQuery();
 
             if (result.next()) {
                 return validatePassword(result, astroDetailModel);
             }
-        } catch (SQLException e) {
+
+        } catch (SQLException | ClassNotFoundException e) {
+            System.out.println("Database connection error during login for email: "
+                    + astroDetailModel.getEmail());
             e.printStackTrace();
-            return null;
+            return null; // signals connection/DB error to the caller
         }
 
-        return false;
+        return false; // email not found in database
     }
 
     /**
@@ -80,7 +65,7 @@ public class LoginService {
         String decryptedPassword = PasswordUtil.decrypt(dbPassword, dbEmail);
         if (decryptedPassword == null) {
             System.out.println("Decryption failed for email: " + dbEmail);
-            return false; // Handle decryption failure gracefully
+            return false;
         }
 
         return enteredPassword != null && decryptedPassword.equals(enteredPassword);
