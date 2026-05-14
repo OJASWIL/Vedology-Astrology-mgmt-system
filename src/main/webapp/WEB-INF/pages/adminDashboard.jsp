@@ -96,44 +96,51 @@
 
             <div class="dashboard-container">
 
-                <%-- ===================== DASHBOARD TAB ===================== --%>
-                <% if (tab == null || tab.isEmpty() || "dashboard".equals(tab)) { %>
-                    <div class="profile-card" style="max-width:700px;margin:0 auto;">
-                        <div class="profile-img-circle">
-                            <img src="<%= profileImgSrc %>"
-                                 alt="Profile Photo"
-                                 onerror="this.onerror=null; this.src='<%= defaultImg %>';">
-                        </div>
-                        <h2><%= user != null ? user.getFullName() : "Administrator" %></h2>
-                        <span class="badge confirmed">Admin</span>
-                    </div>
+               <%-- ===================== DASHBOARD TAB ===================== --%>
+<% if (tab == null || tab.isEmpty() || "dashboard".equals(tab)) { %>
+    <div class="profile-card" style="max-width:700px; margin:0 auto; text-align: center;">
+        
+        <div class="profile-img-circle" style="margin: 0 auto 20px auto;">
+            <img src="<%= profileImgSrc %>"
+                 alt="Profile Photo"
+                 onerror="this.onerror=null; this.src='<%= defaultImg %>';">
+        </div>
+        
+   <div style="text-align: left; padding-left: 10px; margin-bottom: 8px;">
+    <strong>Name:</strong> 
+    <span style="font-size: 18px; font-weight: 600;">
+        <%= user != null && user.getFullName() != null ? user.getFullName() : "Administrator" %>
+    </span>
+</div>
+        <span class="badge confirmed" style="margin-bottom: 20px;">You are a Admin</span>
 
-                    <div class="user-info">
-                        <p><strong>Email:</strong> <%= user != null ? user.getEmail() : "N/A" %></p>
-                        <p><strong>Phone:</strong> <%= user != null && user.getPhone() != null ? user.getPhone() : "N/A" %></p>
-                        <p><strong>Role:</strong> <%= user != null ? user.getRole() : "N/A" %></p>
-                        <% if (user != null && user.getTimeOfBirth() != null) { %>
-                        <p><strong>Time of Birth:</strong> <%= user.getTimeOfBirth().format(timeFmt) %></p>
-                        <% } %>
-                    </div>
+        <div class="user-info" style="text-align: left;">
+            <p><strong>Email:</strong> <%= user != null ? user.getEmail() : "N/A" %></p>
+            <p><strong>Phone:</strong> <%= user != null && user.getPhone() != null ? user.getPhone() : "N/A" %></p>
+            <p><strong>Role:</strong> <%= user != null ? user.getRole() : "N/A" %></p>
+            <% if (user != null && user.getTimeOfBirth() != null) { %>
+            <p><strong>Time of Birth:</strong> <%= user.getTimeOfBirth().format(timeFmt) %></p>
+            <% } %>
+        </div>
 
-                    <p style="text-align:center; color:#888; margin-top:20px; font-size:14px;">
-                        Manage clients, services, appointments, and reports from the sidebar.
-                    </p>
+        <p style="margin-top:25px; color:#888; font-size:14px; text-align:center;">
+            Manage clients, services, appointments, and reports from the sidebar.
+        </p>
 
                 <%-- ===================== EDIT PROFILE TAB ===================== --%>
                 <% } else if ("editProfile".equals(tab)) { %>
                     <h3>Edit Profile</h3>
 
-                    <div style="text-align:center; margin-bottom:24px;">
-                        <div class="profile-img-circle" style="margin:0 auto;">
-                            <img id="profilePreview"
-                                 src="<%= profileImgSrc %>"
-                                 alt="Profile Picture"
-                                 onerror="this.onerror=null; this.src='<%= defaultImg %>';">
-                        </div>
-                        <br><small style="color:#888;">Select a JPG/PNG to change your photo</small>
-                    </div>
+                   <div style="text-align:center; margin-bottom:24px;">
+    <div class="profile-img-circle" style="margin:0 auto; width:120px; height:120px;">
+        <img id="profilePreview"
+             src="<%= profileImgSrc %>"
+             alt="Profile Picture"
+             style="width:100%; height:100%; object-fit: cover; border-radius: 50%;"
+             onerror="this.onerror=null; this.src='<%= defaultImg %>';">
+    </div>
+    <br><small style="color:#888;">Select a JPG/PNG to change your photo</small>
+</div>
 
                     <form action="<%= request.getContextPath() %>/admin/manage" method="post"
                           enctype="multipart/form-data" class="profile-form">

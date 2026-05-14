@@ -60,15 +60,17 @@
         <aside class="sidebar">
             <nav>
                 <ul>
-                    <li id="nav-dashboard"><a href="#" onclick="switchTab('dashboard'); return false;">Dashboard</a></li>
-                    <li id="nav-edit"><a href="#" onclick="switchTab('edit'); return false;">Edit Profile</a></li>
-                    <li id="nav-search"><a href="#" onclick="switchTab('search'); return false;">Search Services</a></li>
-                    <li id="nav-astrologers"><a href="#" onclick="switchTab('astrologers'); return false;">Astrologer List</a></li>
-                    <li id="nav-horoscope"><a href="#" onclick="switchTab('horoscope'); return false;">View Horoscope</a></li>
-                    <li id="nav-payments"><a href="#" onclick="switchTab('payments'); return false;">Payment History</a></li>
-                    <li id="nav-appointments"><a href="#" onclick="switchTab('appointments'); return false;">My Appointments</a></li>
-                    <li id="nav-reports"><a href="#" onclick="switchTab('reports'); return false;">View Reports</a></li>
-                </ul>
+                <li id="nav-dashboard"><a href="#" onclick="switchTab('dashboard'); return false;">Dashboard</a></li>
+                <li id="nav-edit"><a href="#" onclick="switchTab('edit'); return false;">Edit Profile</a></li>
+                <li id="nav-search"><a href="#" onclick="switchTab('search'); return false;">Search Services</a></li>
+                <li id="nav-astrologers"><a href="#" onclick="switchTab('astrologers'); return false;">Astrologer List</a></li>
+                <li id="nav-horoscope"><a href="#" onclick="switchTab('horoscope'); return false;">View Horoscope</a></li>
+                <li id="nav-payments"><a href="#" onclick="switchTab('payments'); return false;">Payment History</a></li>
+                <li id="nav-appointments"><a href="#" onclick="switchTab('appointments'); return false;">My Appointments</a></li>
+                <li id="nav-reports"><a href="#" onclick="switchTab('reports'); return false;">View Reports</a></li>
+                <li id="nav-about"><a href="#" onclick="switchTab('about'); return false;">About Us</a></li>
+                <li id="nav-contact"><a href="#" onclick="switchTab('contact'); return false;">Contact Us</a></li>
+            </ul>
             </nav>
         </aside>
 
@@ -265,6 +267,37 @@
     <% } %>
 </div>
 
+<%-- === ABOUT US TAB === --%>
+            <div id="panel-about" class="tab-panel">
+                <h3>About Vedology</h3>
+                <div style="line-height:1.7; color:#333;">
+                    <p><strong>Vedology</strong> is a modern Astrology Management System inspired by the ancient wisdom of the Vedas.</p>
+                    <p>The name "Vedology" comes from the four Vedas — Rig Veda, Yajur Veda, and Atharva Veda contain significant references to astrology. This platform bridges traditional Vedic knowledge with modern technology.</p>
+                    <p>Vedology provides various astrological services related to health, career, relationships, and more by analyzing planetary positions. It offers a user-friendly experience for clients to find the right astrologer and helps astrologers manage client records efficiently.</p>
+                    <p>The logo features Lord Shiva, regarded as the father of astrology in mythology, with the Sun (Atma Karaka) and Moon (Mana Karaka) symbolizing soul and emotions. The deep blue color represents mystery, depth, and hidden cosmic knowledge.</p>
+                    <p>Built using MVC architecture, ArrayList for data handling, proper form validation, and full CRUD operations, Vedology seamlessly combines ancient astrology with contemporary software development.</p>
+                </div>
+            </div>
+
+            <%-- === CONTACT US TAB === --%>
+            <div id="panel-contact" class="tab-panel">
+                <h3>Contact Us</h3>
+                <div style="text-align:center; padding:40px 20px; background:#f8f9fa; border-radius:12px; max-width:500px; margin:30px auto;">
+                    <div style="font-size:48px; margin-bottom:20px;">📞</div>
+                    <h2>Get in Touch</h2>
+                    <p style="font-size:18px; margin:20px 0;">
+                        <strong>Phone:</strong> <a href="tel:9779768522395" style="color:#007bff; text-decoration:none;">977-9768522395</a>
+                    </p>
+                    <p style="font-size:18px; margin:20px 0;">
+                        <strong>Email:</strong> <a href="mailto:ojaswi0607@gmail.com" style="color:#007bff; text-decoration:none;">ojaswi0607@gmail.com</a>
+                    </p>
+                    <p style="margin-top:30px; color:#666;">
+                        We are here to help you connect with the cosmic wisdom.<br>
+                        Feel free to reach out anytime!
+                    </p>
+                </div>
+            </div>
+
                 <%-- === REPORTS TAB === --%>
                 <div id="panel-reports" class="tab-panel">
                     <h3>View Reports</h3>
@@ -276,8 +309,7 @@
     </div>
 
     <script>
-    var TABS = ['dashboard','edit','search','astrologers','horoscope','payments','appointments','reports'];
-
+    var TABS = ['dashboard','edit','search','astrologers','horoscope','payments','appointments','reports','about','contact'];
     function switchTab(tabName) {
         TABS.forEach(function(t) {
             var panel = document.getElementById('panel-' + t);

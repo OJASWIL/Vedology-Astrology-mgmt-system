@@ -10,7 +10,6 @@
 </head>
 <body>
 <div class="login-container">
-    <img src="your-image.png" alt="VedAstrology Logo" class="logo" />
 
     <p class="welcome-text">Welcome Back!<br>Please Login to your account</p>
 
