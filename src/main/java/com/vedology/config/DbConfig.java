@@ -49,7 +49,7 @@ public class DbConfig {
         + "&socketTimeout=60000";
 
     private static final String USERNAME = "root";
-    private static final String PASSWORD = "";   // Leave empty if no password (default in XAMPP)
+    private static final String PASSWORD = "";  
 
     public static Connection getDbConnection() throws SQLException, ClassNotFoundException {
         System.out.println("=== Attempting DB Connection ===");
