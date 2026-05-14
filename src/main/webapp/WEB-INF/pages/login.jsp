@@ -4,7 +4,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Insert title here</title>
+<title>Vedology mgmt System</title>
 <link rel="stylesheet" href="<%= request.getContextPath() %>/css/login.css">
 
 </head>
